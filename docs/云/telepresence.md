@@ -86,3 +86,28 @@ telepresence helm install --set image.registry=docker.io/datawire \
 | `gather-logs` | Gather logs from traffic-manager, traffic-agents, user, and root daemons, and export them into a zip file that can be shared with others or included with a github issue. Use `--get-pod-yaml` to include the yaml for the `traffic-manager` and `traffic-agent`s. Use `--anonymize` to replace the actual pod names + namespaces used for the `traffic-manager` and pods containing `traffic-agent`s in the logs. |
 | `version`     | Show version of Telepresence CLI + Traffic-Manager (if connected) |
 | `uninstall`   | Uninstalls Telepresence from your cluster, using the `--agent` flag to target the Traffic Agent for a specific workload, the `--all-agents` flag to remove all Traffic Agents from all workloads, or the `--everything` flag to remove all Traffic Agents and the Traffic Manager. |
+
+## 常见问题
+
+### 使用connect命令连接提示 x509 .. not valid
+
+原因是启动了证书验证，集群内主机用float ip对外暴露，集群内无法感知该ip，证书不认这ip。
+
+解决：[kubeadm - kubernetes master 的 x509 证书无效 - 堆栈溢出 (stackoverflow.com)](https://stackoverflow.com/questions/46360361/invalid-x509-certificate-for-kubernetes-master)
+
+1. 在所有节点上执行下面命令
+
+```
+kubeadm init --apiserver-cert-extra-sans=外部ip
+kubeadm reset
+```
+
+2. 在 master节点执行
+
+```
+rm /etc/kubernetes/pki/apiserver.*
+kubeadm init phase certs all --apiserver-advertise-address=0.0.0.0 --apiserver-cert-extra-sans=10.161.233.80,114.215.201.87
+docker rm `docker ps -q -f 'name=k8s_kube-apiserver*'`
+systemctl restart kubelet
+```
+
