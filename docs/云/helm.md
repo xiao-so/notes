@@ -178,6 +178,57 @@ helm uninstall <release_name>
 helm fetch <chart_name> [--version x.x.x]
 ```
 
+## 快捷脚本
+
+### 还原 release helm 命令
+
+脚本 generate_helm_install_command.sh
+
+```sh
+#!/bin/bash
+
+# 检查输入参数
+if [ "$#" -ne 2 ]; then
+  echo "Usage: $0 <release_name> <namespace>"
+  exit 1
+fi
+
+RELEASE_NAME=$1
+NAMESPACE=$2
+
+# 获取Helm发布的信息
+RELEASE_INFO=$(helm get all $RELEASE_NAME --namespace $NAMESPACE)
+
+# 解析Chart名称和版本
+CHART_NAME=$(echo "$RELEASE_INFO" | grep 'chart:' | awk '{print $2}' | sed 's/-[0-9.]*$//')
+CHART_VERSION=$(echo "$RELEASE_INFO" | grep 'chart:' | awk '{print $2}' | sed 's/.*-//')
+
+# 提取自定义值文件
+VALUES=$(helm get values $RELEASE_NAME --namespace $NAMESPACE --output yaml)
+
+# 生成安装命令
+INSTALL_CMD="helm install $RELEASE_NAME $CHART_NAME --version $CHART_VERSION --namespace $NAMESPACE"
+
+# 如果有自定义值，则保存为临时文件并添加到命令中
+if [ ! -z "$VALUES" ]; then
+  VALUES_FILE=$(mktemp)
+  echo "$VALUES" > $VALUES_FILE
+  INSTALL_CMD="$INSTALL_CMD -f $VALUES_FILE"
+fi
+
+# 输出最终命令
+echo "Generated Helm install command:"
+echo $INSTALL_CMD
+
+# 提示用户清理临时文件
+if [ ! -z "$VALUES" ]; then
+  echo "Remember to remove the temporary values file: $VALUES_FILE"
+fi
+
+```
+
+使用 `./generate_helm_install_command.sh <release_name> <namespace>`
+
 ## 参考
 
 [Helm | Docs](https://helm.sh/zh/docs/)
